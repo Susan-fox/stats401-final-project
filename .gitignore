@@ -1,0 +1,9 @@
+# raw BTS files are 2.5 GB - never commit them
+data/raw/
+*.zip
+*.csv
+!data/airports_meta.csv
+
+.DS_Store
+__pycache__/
+.ipynb_checkpoints/
