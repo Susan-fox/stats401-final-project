@@ -1,6 +1,7 @@
 import { drawMap } from "./map.js";
 import { drawHeatmap } from "./heatmap.js";
 import { drawCauses, drawRibbon } from "./causes.js";
+import { drawDistance } from "./distance.js";
 import { fmtInt, fmtPct, fmtMin, CAUSE_KEYS } from "./shared.js";
 
 function put(id, text) {
@@ -12,7 +13,10 @@ async function main() {
   try {
     const s = await d3.json("data/processed/summary.json");
 
-    const label = Object.fromEntries(CAUSE_KEYS.map(c => [c.key, c.label.toLowerCase()]));
+    const label = Object.fromEntries(
+      CAUSE_KEYS.map(c => [c.key, c.label.toLowerCase()])
+    );
+
     const top = s.largest_cause;
 
     put("n-rows", fmtInt(s.total_rows));
@@ -28,6 +32,7 @@ async function main() {
     put("top-cause-share", fmtPct(s.cause_share[top]));
 
     drawRibbon(s);
+
   } catch (err) {
     console.error("summary.json did not load", err);
   }
@@ -35,6 +40,7 @@ async function main() {
   drawMap();
   drawHeatmap();
   drawCauses();
+  drawDistance();
 }
 
 main();
