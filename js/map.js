@@ -14,13 +14,9 @@ import {
 
 
 const W = 960;
-
 const H = 600;
-
 const LABEL_N = 14;
-
 const DOT = "#d4b5c4";
-
 const PAPER = "#FFFFFF";
 
 
@@ -50,13 +46,8 @@ export async function drawMap() {
 
     mount.innerHTML = "";
 
-
-    let selectedAirport =
-      null;
-
-
-    let currentMetric =
-      "delay15";
+    let selectedAirport = null;
+    let currentMetric = "delay15";
 
 
     /* ============================================================
@@ -66,74 +57,38 @@ export async function drawMap() {
     const controls =
       d3.select(mount)
         .append("div")
-        .style(
-          "display",
-          "flex"
-        )
-        .style(
-          "align-items",
-          "center"
-        )
-        .style(
-          "gap",
-          "8px"
-        )
-        .style(
-          "margin-bottom",
-          "8px"
-        )
-        .style(
-          "flex-wrap",
-          "wrap"
-        );
+        .style("display", "flex")
+        .style("align-items", "center")
+        .style("gap", "8px")
+        .style("margin-bottom", "8px")
+        .style("flex-wrap", "wrap");
 
 
     controls
       .append("span")
-      .style(
-        "font-size",
-        "12px"
-      )
-      .style(
-        "font-weight",
-        "600"
-      )
-      .style(
-        "color",
-        "#5A6E78"
-      )
-      .text(
-        "State metric:"
-      );
+      .style("font-size", "12px")
+      .style("font-weight", "600")
+      .style("color", "#5A6E78")
+      .text("State metric:");
 
 
     const metricData = [
       {
-        key:
-          "delay15",
-        label:
-          "Delay rate"
+        key: "delay15",
+        label: "Delay rate"
       },
       {
-        key:
-          "cancel",
-        label:
-          "Cancellation rate"
+        key: "cancel",
+        label: "Cancellation rate"
       }
     ];
 
 
     const buttons =
       controls
-        .selectAll(
-          "button"
-        )
-        .data(
-          metricData
-        )
-        .join(
-          "button"
-        )
+        .selectAll("button")
+        .data(metricData)
+        .join("button")
         .style(
           "border",
           "1px solid #CBD5DC"
@@ -154,10 +109,7 @@ export async function drawMap() {
           "cursor",
           "pointer"
         )
-        .text(
-          d =>
-            d.label
-        );
+        .text(d => d.label);
 
 
     const selectedLabel =
@@ -208,10 +160,7 @@ export async function drawMap() {
       d3.geoAlbersUsa()
         .fitExtent(
           [
-            [
-              22,
-              22
-            ],
+            [22, 22],
             [
               W - 54,
               H - 108
@@ -263,8 +212,7 @@ export async function drawMap() {
       d3.rollup(
 
         airports.filter(
-          d =>
-            d.stateName
+          d => d.stateName
         ),
 
         v => {
@@ -272,8 +220,7 @@ export async function drawMap() {
           const flights =
             d3.sum(
               v,
-              d =>
-                d.flights
+              d => d.flights
             );
 
 
@@ -320,27 +267,22 @@ export async function drawMap() {
               v
                 .slice()
                 .sort(
-                  (
-                    a,
-                    b
-                  ) =>
+                  (a, b) =>
                     b.delay15_rate -
                     a.delay15_rate
                 )[0]
           };
         },
 
-        d =>
-          d.stateName
+        d => d.stateName
       );
 
 
-    function metricValue(
-      state
-    ) {
+    function metricValue(state) {
 
-      if (!state)
+      if (!state) {
         return null;
+      }
 
 
       return currentMetric ===
@@ -380,19 +322,10 @@ export async function drawMap() {
 
     const statePaths =
       stateLayer
-        .selectAll(
-          "path"
-        )
-        .data(
-          feats
-        )
-        .join(
-          "path"
-        )
-        .attr(
-          "d",
-          path
-        )
+        .selectAll("path")
+        .data(feats)
+        .join("path")
+        .attr("d", path)
         .attr(
           "fill",
           d => {
@@ -405,9 +338,7 @@ export async function drawMap() {
 
             return s
               ? stateColor(
-                  metricValue(
-                    s
-                  )
+                  metricValue(s)
                 )
               : "#EDF1F4";
           }
@@ -418,10 +349,7 @@ export async function drawMap() {
         )
         .on(
           "mouseenter",
-          (
-            e,
-            d
-          ) => {
+          (e, d) => {
 
             const s =
               byState.get(
@@ -459,17 +387,13 @@ export async function drawMap() {
               <span class="d">
                 flights delayed 15+ min
               </span>
-              ${fmtPct(
-                s.delay15
-              )}
+              ${fmtPct(s.delay15)}
               <br>
 
               <span class="d">
                 cancelled
               </span>
-              ${fmtPct(
-                s.cancel
-              )}
+              ${fmtPct(s.cancel)}
               <br>
 
               <span class="d">
@@ -505,21 +429,12 @@ export async function drawMap() {
         topojson.mesh(
           us,
           us.objects.states,
-          (
-            a,
-            b
-          ) =>
+          (a, b) =>
             a !== b
         )
       )
-      .attr(
-        "d",
-        path
-      )
-      .attr(
-        "fill",
-        "none"
-      )
+      .attr("d", path)
+      .attr("fill", "none")
       .attr(
         "stroke",
         PAPER
@@ -547,14 +462,10 @@ export async function drawMap() {
           })
         )
         .filter(
-          d =>
-            d.xy
+          d => d.xy
         )
         .sort(
-          (
-            a,
-            b
-          ) =>
+          (a, b) =>
             b.flights -
             a.flights
         );
@@ -566,8 +477,7 @@ export async function drawMap() {
           0,
           d3.max(
             pts,
-            d =>
-              d.flights
+            d => d.flights
           )
         ])
         .range([
@@ -580,9 +490,7 @@ export async function drawMap() {
       d =>
         Math.max(
           1.6,
-          r(
-            d.flights
-          )
+          r(d.flights)
         );
 
 
@@ -592,24 +500,16 @@ export async function drawMap() {
 
     const airportCircles =
       airportLayer
-        .selectAll(
-          "circle"
-        )
-        .data(
-          pts
-        )
-        .join(
-          "circle"
-        )
+        .selectAll("circle")
+        .data(pts)
+        .join("circle")
         .attr(
           "cx",
-          d =>
-            d.xy[0]
+          d => d.xy[0]
         )
         .attr(
           "cy",
-          d =>
-            d.xy[1]
+          d => d.xy[1]
         )
         .attr(
           "r",
@@ -642,9 +542,7 @@ export async function drawMap() {
             d
           ) {
 
-            d3.select(
-              this
-            )
+            d3.select(this)
               .attr(
                 "fill-opacity",
                 1
@@ -663,9 +561,7 @@ export async function drawMap() {
               <span class="d">
                 departures
               </span>
-              ${fmtInt(
-                d.flights
-              )}
+              ${fmtInt(d.flights)}
               <br>
 
               <span class="d">
@@ -713,9 +609,7 @@ export async function drawMap() {
             d
           ) {
 
-            d3.select(
-              this
-            )
+            d3.select(this)
               .attr(
                 "fill-opacity",
                 selectedAirport ===
@@ -801,7 +695,7 @@ export async function drawMap() {
 
 
     /* ============================================================
-       LABELS
+       AIRPORT LABELS
     ============================================================ */
 
     svg.append("g")
@@ -821,18 +715,14 @@ export async function drawMap() {
         "pointer-events",
         "none"
       )
-      .selectAll(
-        "text"
-      )
+      .selectAll("text")
       .data(
         pts.slice(
           0,
           LABEL_N
         )
       )
-      .join(
-        "text"
-      )
+      .join("text")
       .attr(
         "x",
         d =>
@@ -877,8 +767,7 @@ export async function drawMap() {
         3
       )
       .text(
-        d =>
-          d.iata
+        d => d.iata
       );
 
 
@@ -893,6 +782,18 @@ export async function drawMap() {
           `translate(32,${
             H - 80
           })`
+        )
+        .attr(
+          "font-family",
+          "IBM Plex Sans, sans-serif"
+        )
+        .attr(
+          "font-size",
+          10.5
+        )
+        .attr(
+          "fill",
+          "#5A6E78"
         );
 
 
@@ -903,20 +804,18 @@ export async function drawMap() {
         .remove();
 
 
+      /* Wider ramp so percentage ticks do not overlap */
       rampLegend(
         legendRoot,
         stateColor,
         {
-          width:
-            185,
+          width: 290,
 
           title:
             metricTitle(),
 
           format:
-            d3.format(
-              ".0%"
-            ),
+            d3.format(".0%"),
 
           sub:
             "flight-weighted across the state's airports"
@@ -924,12 +823,16 @@ export async function drawMap() {
       );
 
 
+      /*
+        Move the circle-size legend farther right
+        because the color legend is now wider.
+      */
       const sg =
         legendRoot
           .append("g")
           .attr(
             "transform",
-            "translate(248,0)"
+            "translate(370,0)"
           );
 
 
@@ -969,9 +872,7 @@ export async function drawMap() {
             );
 
 
-          sg.append(
-            "circle"
-          )
+          sg.append("circle")
             .attr(
               "cx",
               lx + rad
@@ -995,12 +896,14 @@ export async function drawMap() {
             .attr(
               "stroke",
               PAPER
+            )
+            .attr(
+              "stroke-width",
+              0.8
             );
 
 
-          sg.append(
-            "text"
-          )
+          sg.append("text")
             .attr(
               "x",
               lx + rad
@@ -1032,7 +935,7 @@ export async function drawMap() {
 
 
     /* ============================================================
-       METRIC CHANGE
+       METRIC SWITCH
     ============================================================ */
 
     function updateMetric(
@@ -1069,9 +972,7 @@ export async function drawMap() {
 
             return s
               ? stateColor(
-                  metricValue(
-                    s
-                  )
+                  metricValue(s)
                 )
               : "#EDF1F4";
           }
@@ -1103,10 +1004,7 @@ export async function drawMap() {
 
     buttons.on(
       "click",
-      (
-        e,
-        d
-      ) => {
+      (e, d) => {
 
         updateMetric(
           d.key
