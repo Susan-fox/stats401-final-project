@@ -23,7 +23,8 @@ The raw files are 2.5 GB and are **not** in this repository. Regenerate them:
 
 ```bash
 bash scripts/download.sh 2024     # 12 monthly zips -> data/raw/, then unzips
-python scripts/build_data.py      # data/raw/*.csv  -> data/processed/*.json
+python scripts/build_data.py         # data/raw/*.csv -> Viz 1-3 JSON
+python scripts/build_propagation.py  # data/raw/*.csv -> Viz 4-5 JSON
 ```
 
 `build_data.py` prints the five-cause ranking when it finishes. That ranking is the
@@ -48,15 +49,18 @@ python -m http.server 8000
 ## Layout
 
 ```
-index.html              the page (all four milestone sections)
+index.html              the page
 css/style.css
 js/shared.js            tooltip, colour scales, formatting
 js/map.js               Viz 1  airport map
 js/heatmap.js           Viz 2  hour x weekday heatmap
 js/causes.js            Viz 3  cause composition + hero ribbon
+js/propagation.js       Viz 4  delay by leg of the aircraft's day
+js/turnarounds.js       Viz 5  airport turnarounds: delay in vs. out
 js/main.js              entry point
 scripts/download.sh     fetch the raw monthly files
-scripts/build_data.py   raw CSV -> processed JSON
+scripts/build_data.py   raw CSV -> processed JSON (Viz 1-3)
+scripts/build_propagation.py  raw CSV -> rotation JSON (Viz 4-5)
 data/airports_meta.csv  US airport coordinates (from OpenFlights), committed
 data/raw/               gitignored
 data/processed/         committed, ~500 KB total

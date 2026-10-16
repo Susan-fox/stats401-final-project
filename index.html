@@ -1,238 +1,1467 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>US Flight Delays: From Symptoms to Source — Interim Check-In</title>
-<link rel="stylesheet" href="css/style.css">
-<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>US Flight Delays: From Symptoms to Source</title>
+
+  <link rel="stylesheet" href="css/style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 </head>
+
+
 <body>
+
 <div id="tip"></div>
 
 <div class="wrap">
 
+
+<!-- ============================================================
+     HEADER
+============================================================ -->
+
 <header class="masthead">
-  <h1>US Flight Delays: From Symptoms to Source</h1>
-  <p>Travelers blame the airport, the airline, or the weather. The Bureau of Transportation
-     Statistics records a different leading cause — and it points inward, at the network's
-     own schedule.</p>
+
+  <h1>
+    US Flight Delays: From Symptoms to Source
+  </h1>
+
+  <p>
+    Flight delays are easy to notice but harder to explain.
+    This project uses more than seven million scheduled U.S. domestic
+    flights from 2024 to move from visible delay patterns toward their
+    possible operational sources.
+  </p>
+
   <div class="meta">
-    <span>Interim check-in</span>
-    <span>Tian Liang &amp; Jiayang Sun</span>
-    <span>Data: BTS On-Time Performance, 2024</span>
-    <span><a href="https://github.com/ORG/REPO">Repository</a></span>
+
+    <span>
+      STATS 401 Final Project
+    </span>
+
+    <span>
+      Tian Liang &amp; Jiayang Sun
+    </span>
+
+    <span>
+      Data: BTS On-Time Performance, 2024
+    </span>
+
+    <span>
+      <a href="https://github.com/Susan-fox/stats401-final-project">
+        GitHub Repository
+      </a>
+    </span>
+
   </div>
+
 </header>
 
+
+
+<!-- ============================================================
+     MAIN FINDING
+============================================================ -->
+
 <div class="finding">
-  <h2>Where the delay minutes actually come from</h2>
-  <p>Every minute of delay on a flight arriving 15 or more minutes late is attributed by the
-     carrier to one of five causes. Across <span class="mono" id="n-rows">—</span> scheduled
-     flights in 2024, the largest single category is
-     <b id="top-cause">—</b>, at <span class="mono" id="top-cause-share">—</span> of all
-     delay minutes. That category means the aircraft assigned to the flight arrived late from
-     its own previous leg: the delay was not created here, it was inherited.</p>
+
+  <h2>
+    Where the delay minutes actually come from
+  </h2>
+
+  <p>
+    Every minute of delay on a flight arriving at least 15 minutes late
+    is attributed by the carrier to one of five reported causes.
+
+    Across
+
+    <span class="mono" id="n-rows">
+      —
+    </span>
+
+    scheduled flights in 2024, the largest category is
+
+    <b id="top-cause">
+      —
+    </b>,
+
+    accounting for
+
+    <span class="mono" id="top-cause-share">
+      —
+    </span>
+
+    of reported delay minutes.
+
+    When the dominant category is late inbound aircraft, the delay did
+    not begin on the current flight: it was inherited from an earlier
+    leg in the aircraft's schedule.
+  </p>
+
   <svg id="cause-ribbon"></svg>
+
 </div>
 
-<!-- ============================ 1. DATASET ============================ -->
-<section id="dataset">
-  <h2>Dataset <span class="rubric">requirement 1</span></h2>
 
-  <h3>Raw data</h3>
-  <p>Twelve monthly files from the BTS <i>Reporting Carrier On-Time Performance</i> database,
-     covering January–December 2024. Each file is one row per scheduled domestic flight
-     operated by a carrier accounting for at least 0.5% of domestic passenger revenue.</p>
-  <ul>
-    <li>Source: <a href="https://transtats.bts.gov/DatabaseInfo.asp?QO_VQ=EFD">BTS TranStats, database EFD</a>
-        (<a href="https://www.transtats.bts.gov/Fields.asp?gnoyr_VQ=FGJ">field definitions</a>)</li>
-    <li>Acquisition: scripted download of the pre-packaged monthly archives from the
-        <span class="mono">/PREZIP/</span> endpoint, rather than the interactive form</li>
-    <li>Volume: <span class="mono" id="n-rows-2">≈7 million</span> rows × 110 columns,
-        about 2.5&nbsp;GB uncompressed</li>
-    <li>Secondary: <a href="https://raw.githubusercontent.com/jpatokal/openflights/master/data/airports.dat">OpenFlights
-        airport database</a>, trimmed to US airports with IATA codes, for the latitude and
-        longitude that BTS does not supply</li>
-  </ul>
-  <p>The raw files are not committed. <span class="mono">data/raw/</span> is in
-     <span class="mono">.gitignore</span>; <span class="mono">scripts/build_data.py</span>
-     regenerates everything downstream of it.</p>
 
-  <h3>Processing completed</h3>
-  <p>We read only the 27 columns our questions need, using DuckDB to query the CSVs directly
-     rather than loading them into memory. Four issues in this dataset needed decisions rather
-     than defaults:</p>
+<!-- ============================================================
+     PROJECT QUESTIONS
+============================================================ -->
+
+<section id="questions">
+
+  <h2>
+    Questions
+  </h2>
+
+  <p>
+    The visualization story follows five related questions. The first
+    three describe what delay looks like from the outside; the last two
+    test whether it behaves like something the network carries forward
+    through its own schedule.
+  </p>
+
   <ol>
-    <li><b>The five cause columns are conditionally populated.</b> They carry values only when
-        arrival delay reaches 15 minutes. Blank is not zero, so every cause share is computed
-        over delayed flights, never over all flights.</li>
-    <li><b>Cancelled and diverted flights have null arrival delay.</b> Dropping them silently
-        would reward airports that cancel aggressively, so they are excluded from delay
-        statistics and reported separately as a cancellation rate
-        (<span class="mono" id="rate-cancel">—</span> of scheduled flights).</li>
-    <li><b>Times are <span class="mono">hhmm</span> integers, not timestamps.</b>
-        <span class="mono">1435</span> means 14:35, and <span class="mono">2400</span> is a legal
-        value meaning midnight. Departure hour is derived with integer division and a modulo,
-        and durations come from <span class="mono">ActualElapsedTime</span> rather than
-        subtracting arrival from departure, because overnight flights arrive at a smaller
-        clock value than they departed.</li>
-    <li><b>Two-letter carrier codes have been reassigned between airlines historically.</b>
-        We key on <span class="mono">DOT_ID_Reporting_Airline</span> and treat the letter code
-        as a display label only.</li>
+
+    <li>
+      Which airports and regions experience the highest levels of delay?
+    </li>
+
+    <li>
+      How do delay patterns vary by time of day and weekday?
+    </li>
+
+    <li>
+      What share of reported delay is associated with late aircraft,
+      carrier operations, the national airspace system, weather,
+      and security?
+    </li>
+
+    <li>
+      Does a delay early in an aircraft's day persist across its later
+      legs, and does the shape of the rotation — short-haul or
+      long-haul — change how far it travels?
+    </li>
+
+    <li>
+      Which airports absorb the delay that arrives with an aircraft,
+      and which hand more of it back to the network?
+    </li>
+
   </ol>
 
-  <h3>Processed outputs</h3>
-  <p>The pipeline emits one pre-aggregated file per view. All of them together are under
-     half a megabyte, so the browser never touches the raw data.</p>
+</section>
+
+
+
+<!-- ============================================================
+     DATASET
+============================================================ -->
+
+<section id="dataset">
+
+  <h2>
+    Dataset
+    <span class="rubric">
+      acquisition and processing
+    </span>
+  </h2>
+
+
+  <h3>
+    Primary data
+  </h3>
+
+  <p>
+    The primary dataset is the 2024
+    <i>Reporting Carrier On-Time Performance</i>
+    database published by the U.S. Bureau of Transportation Statistics.
+
+    The data are distributed as monthly files, with one row for each
+    scheduled domestic flight reported by qualifying carriers.
+  </p>
+
+
+  <ul>
+
+    <li>
+      Source:
+      <a href="https://transtats.bts.gov/DatabaseInfo.asp?QO_VQ=EFD">
+        BTS TranStats
+      </a>
+    </li>
+
+    <li>
+      Field definitions:
+      <a href="https://www.transtats.bts.gov/Fields.asp?gnoyr_VQ=FGJ">
+        BTS variable documentation
+      </a>
+    </li>
+
+    <li>
+      Acquisition:
+      the twelve 2024 monthly archives were downloaded from the BTS
+      pre-packaged download endpoint and processed programmatically
+    </li>
+
+    <li>
+      Volume:
+
+      <span class="mono" id="n-rows-2">
+        —
+      </span>
+
+      scheduled flights
+    </li>
+
+  </ul>
+
+
+
+  <h3>
+    Airport coordinates
+  </h3>
+
+  <p>
+    BTS does not provide latitude and longitude in the flight records,
+    so airport coordinates were joined from the OpenFlights airport
+    database using IATA airport codes.
+  </p>
+
+
+  <ul>
+
+    <li>
+      Secondary source:
+      <a href="https://raw.githubusercontent.com/jpatokal/openflights/master/data/airports.dat">
+        OpenFlights airport database
+      </a>
+    </li>
+
+  </ul>
+
+
+
+  <h3>
+    Processing decisions
+  </h3>
+
+  <p>
+    The raw files are too large to load directly in a browser, so
+    Python and DuckDB are used to select, clean, aggregate, and export
+    only the information needed by the visualizations.
+  </p>
+
+
+  <ol>
+
+    <li>
+      <b>
+        Delay causes are conditionally reported.
+      </b>
+
+      CarrierDelay, WeatherDelay, NASDelay, SecurityDelay, and
+      LateAircraftDelay are populated for sufficiently delayed flights.
+      Missing cause values are therefore not treated as ordinary zeroes
+      when calculating cause composition.
+    </li>
+
+
+    <li>
+      <b>
+        The cause categories are attributions, not physical causes.
+      </b>
+
+      BTS documents that the weather field covers only extreme weather;
+      ordinary weather is folded into the national airspace category
+      alongside traffic volume and air traffic control, and no cause is
+      recorded for the delay inside the late-aircraft category. The
+      weather share reported here is therefore a lower bound, and the
+      argument below rests on the size of the late-aircraft category
+      rather than on weather being small.
+    </li>
+
+
+    <li>
+      <b>
+        Cancelled and diverted flights require separate treatment.
+      </b>
+
+      Flights without a normal arrival-delay value are excluded from
+      ordinary arrival-delay summaries and tracked separately through
+      cancellation and diversion outcomes.
+
+      The annual cancellation rate is
+
+      <span class="mono" id="rate-cancel">
+        —
+      </span>.
+    </li>
+
+
+    <li>
+      <b>
+        Scheduled times are encoded as hhmm values.
+      </b>
+
+      Values such as
+      <span class="mono">1435</span>
+      represent 14:35, and
+      <span class="mono">2400</span>
+      is a legal value, so departure hours are decoded with integer
+      arithmetic rather than string slicing. Flight durations are taken
+      from the reported elapsed time rather than by subtracting
+      departure from arrival, because overnight flights land at a
+      smaller clock value than they left.
+    </li>
+
+
+    <li>
+      <b>
+        Aircraft rotations are reconstructed from tail numbers.
+      </b>
+
+      Flights are grouped by
+      <span class="mono">Tail_Number</span>
+      and date and ordered by scheduled departure. Airline operations
+      run on UTC while BTS publishes local clock times, so each
+      rotation is checked for continuity — the destination of one leg
+      must be the origin of the next — and any aircraft-day that fails
+      is discarded rather than drawn in the wrong order. The share
+      discarded is reported in
+      <span class="mono">sequence_diag.json</span>
+      and discussed as a limitation.
+    </li>
+
+  </ol>
+
+
+
+  <h3>
+    Processed visualization files
+  </h3>
+
+  <p>
+    Instead of loading the multi-gigabyte raw dataset in the browser,
+    the website reads a set of compact JSON files generated by the
+    processing pipeline.
+  </p>
+
+
   <table>
-    <thead><tr><th>File</th><th>Grain</th><th class="num">Rows</th><th>Feeds</th></tr></thead>
+
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>Level</th>
+        <th>Used for</th>
+      </tr>
+    </thead>
+
     <tbody>
-      <tr><td class="mono">summary.json</td><td>whole year</td><td class="num">1</td><td>headline figures above</td></tr>
-      <tr><td class="mono">airports.json</td><td>airport</td><td class="num">≈330</td><td>Visualization 1</td></tr>
-      <tr><td class="mono">hour_dow.json</td><td>airport × weekday × hour</td><td class="num">≈5,200</td><td>Visualization 2</td></tr>
-      <tr><td class="mono">causes.json</td><td>carrier</td><td class="num">≈17</td><td>Visualization 3</td></tr>
-      <tr><td class="mono">distance_delay.json</td><td>distance bin</td><td class="num">8</td><td>Visualization 4 (next)</td></tr>
+
+      <tr>
+        <td class="mono">
+          summary.json
+        </td>
+        <td>
+          whole year
+        </td>
+        <td>
+          headline statistics
+        </td>
+      </tr>
+
+
+      <tr>
+        <td class="mono">
+          airports.json
+        </td>
+        <td>
+          airport
+        </td>
+        <td>
+          Visualization 1
+        </td>
+      </tr>
+
+
+      <tr>
+        <td class="mono">
+          hour_dow.json
+        </td>
+        <td>
+          airport × weekday × hour
+        </td>
+        <td>
+          Visualization 2
+        </td>
+      </tr>
+
+
+      <tr>
+        <td class="mono">
+          causes.json
+        </td>
+        <td>
+          carrier
+        </td>
+        <td>
+          Visualization 3
+        </td>
+      </tr>
+
+
+      <tr>
+        <td class="mono">
+          transitions.json
+        </td>
+        <td>
+          leg × delay state × next delay state
+        </td>
+        <td>
+          Visualization 4, flow view
+        </td>
+      </tr>
+
+
+      <tr>
+        <td class="mono">
+          propagation.json
+        </td>
+        <td>
+          leg index × first-leg outcome × haul
+        </td>
+        <td>
+          Visualization 4, median view
+        </td>
+      </tr>
+
+
+      <tr>
+        <td class="mono">
+          ground_bins.json
+        </td>
+        <td>
+          scheduled ground-time band
+        </td>
+        <td>
+          Visualization 5, default view
+        </td>
+      </tr>
+
+
+      <tr>
+        <td class="mono">
+          turnarounds.json
+        </td>
+        <td>
+          airport, and airport × carrier
+        </td>
+        <td>
+          Visualization 5, airport view
+        </td>
+      </tr>
+
+
+      <tr>
+        <td class="mono">
+          sequence_diag.json
+        </td>
+        <td>
+          rotation reconstruction
+        </td>
+        <td>
+          limitations and reporting
+        </td>
+      </tr>
+
     </tbody>
+
   </table>
-  <p>Summary of the cleaned year: <span class="mono" id="n-operated">—</span> flights
-     operated across <span class="mono" id="n-airports">—</span> airports and
-     <span class="mono" id="n-carriers">—</span> carriers.
-     <span class="mono" id="rate-delay">—</span> arrived 15 or more minutes late. Median arrival
-     delay is <span class="mono" id="median-delay">—</span> while the mean is
-     <span class="mono" id="mean-delay">—</span> — the gap between those two numbers is itself a
-     finding, and the reason we report medians throughout.</p>
+
+
+
+  <h3>
+    Cleaned-data overview
+  </h3>
+
+  <p>
+    The dataset contains
+
+    <span class="mono" id="n-operated">
+      —
+    </span>
+
+    operated flights across
+
+    <span class="mono" id="n-airports">
+      —
+    </span>
+
+    reporting airports and
+
+    <span class="mono" id="n-carriers">
+      —
+    </span>
+
+    carriers.
+
+    Overall,
+
+    <span class="mono" id="rate-delay">
+      —
+    </span>
+
+    of operated flights arrived at least 15 minutes late.
+
+    Median arrival delay is
+
+    <span class="mono" id="median-delay">
+      —
+    </span>,
+
+    compared with a mean of
+
+    <span class="mono" id="mean-delay">
+      —
+    </span>.
+
+    Because the delay distribution is skewed, the project emphasizes
+    medians, percentiles, and distribution summaries rather than relying
+    only on averages.
+  </p>
+
 </section>
 
-<!-- ========================= 2. VISUALIZATIONS ========================= -->
+
+
+<!-- ============================================================
+     HOW TO USE
+============================================================ -->
+
+<section id="how-to-use">
+
+  <h2>
+    How to Explore
+  </h2>
+
+  <p>
+    The five views are designed as one connected story rather than as
+    independent charts.
+
+    Hover over marks for exact values, use the controls above individual
+    charts to change the comparison, and select an airport to connect
+    the geographic, temporal, and turnaround views.
+  </p>
+
+
+  <p>
+    <b>Reading the numbers.</b>
+
+    Every delay figure is actual time minus scheduled time, in minutes,
+    so a positive value means late and a negative value means early.
+
+    Negative medians are normal rather than surprising: schedules carry
+    enough padding that the typical flight lands ahead of its scheduled
+    arrival, which is also why Visualization 5 restricts its headline
+    measure to flights that genuinely arrived late.
+
+    The one figure that reverses this is recovered minutes, which is
+    written so that positive means delay was absorbed on the ground.
+  </p>
+
+
+  <ul>
+
+    <li>
+      <b>Map:</b>
+      switch the state shading between delay rate and cancellation rate,
+      or click an airport to filter the heatmap and highlight that
+      airport in Visualization 5. Click it again to clear the selection.
+    </li>
+
+    <li>
+      <b>Cause chart:</b>
+      click a cause button to re-sort carriers by that cause.
+      Hovering a cause highlights the same category across carriers.
+    </li>
+
+    <li>
+      <b>Propagation chart:</b>
+      switch between short-haul and long-haul rotations, change the
+      measure, and click a legend entry to isolate one group and reveal
+      the spread around its median.
+    </li>
+
+    <li>
+      <b>Turnaround chart:</b>
+      drag a box to summarise a group of airports, switch the vertical
+      axis between departure delay and delay kept, filter to one
+      carrier, or click an airport to send it to the map and heatmap.
+    </li>
+
+  </ul>
+
+</section>
+
+
+
+<!-- ============================================================
+     VISUALIZATION STORY
+============================================================ -->
+
 <section id="visualizations">
-  <h2>Visualizations <span class="rubric">requirement 2</span></h2>
-  <p>Three working views, rendered in D3 v7 from the processed 2024 data. They are static
-     in the sense the milestone asks for: no interaction beyond inspection tooltips yet.</p>
 
-  <h3>1 &nbsp;Where delay concentrates</h3>
+  <h2>
+    Visualization Story
+    <span class="rubric">
+      five connected views
+    </span>
+  </h2>
+
+
+  <p>
+    The story moves from broad patterns toward increasingly detailed
+    operational evidence:
+
+    <b>where</b>
+
+    delays occur,
+
+    <b>when</b>
+
+    they accumulate,
+
+    <b>what</b>
+
+    they are attributed to,
+
+    whether they
+
+    <b>persist</b>
+
+    as an aircraft moves through its day,
+
+    and finally which airports
+
+    <b>absorb or forward</b>
+
+    the delay that arrives with an aircraft.
+  </p>
+
+
+
+  <!-- ========================================================
+       VIEW 1
+  ========================================================= -->
+
+  <h3>
+    1 &nbsp;Where are delays concentrated?
+  </h3>
+
+
   <figure>
-    <div class="chart" id="viz-map"><div class="loading">Loading map…</div></div>
-    <figcaption><b>Proportional-symbol map.</b> Circle area is departures; fill is median
-      arrival delay, with the colour scale anchored at zero so "on time" is a fixed position
-      rather than a midpoint of the observed range. Establishes the geographic pattern a
-      traveler would recognise, and shows that the busiest airports are not uniformly the
-      latest ones.</figcaption>
+
+    <div class="chart" id="viz-map">
+      <div class="loading">
+        Loading map…
+      </div>
+    </div>
+
+
+    <figcaption>
+
+      <b>
+        Choropleth with proportional symbols.
+      </b>
+
+      State shading shows the selected state-level performance measure,
+      flight-weighted across that state's airports, while airport circle
+      area represents departure volume. Separating the two means each
+      mark answers one question, which keeps the dense northeast
+      corridor readable.
+
+      Airports in Puerto Rico and the U.S. Virgin Islands appear in
+      every other view but not here: the Albers USA projection covers
+      the fifty states only.
+
+      <b>
+        Interaction:
+      </b>
+
+      switch the state measure between delay rate and cancellation rate,
+      hover a state or an airport for details, and click an airport to
+      filter Visualization 2 and highlight it in Visualization 5.
+
+    </figcaption>
+
   </figure>
 
-  <h3>2 &nbsp;When delay accumulates</h3>
+
+
+  <!-- ========================================================
+       VIEW 2
+  ========================================================= -->
+
+  <h3>
+    2 &nbsp;When do delays accumulate?
+  </h3>
+
+
   <figure>
-    <div class="chart" id="viz-heatmap"><div class="loading">Loading heatmap…</div></div>
-    <figcaption><b>Matrix heatmap.</b> Median arrival delay by scheduled departure hour and day
-      of week. The gradient running left to right across every row is the central evidence for
-      our argument: flights scheduled later in the day are progressively later, which is what
-      accumulation inside a shared aircraft fleet looks like, and not what an external shock
-      would look like.</figcaption>
+
+    <div class="chart" id="viz-heatmap">
+      <div class="loading">
+        Loading heatmap…
+      </div>
+    </div>
+
+
+    <figcaption>
+
+      <b>
+        Hour × weekday matrix heatmap.
+      </b>
+
+      Each cell represents flights scheduled during one departure hour
+      on one day of the week, with color encoding median arrival delay.
+
+      The gradient running left to right across every row is the first
+      hint that delay is not an independent event per flight: flights
+      scheduled later in the operating day are progressively later,
+      which is what accumulation inside a shared aircraft fleet looks
+      like and not what an external shock would look like.
+
+      <b>
+        Interaction:
+      </b>
+
+      selecting an airport in Visualization 1 updates this chart from
+      the national pattern to that airport's pattern. The reset control
+      returns the view to the national aggregate.
+
+    </figcaption>
+
   </figure>
 
-  <h3>3 &nbsp;What the delay is attributed to</h3>
+
+
+  <!-- ========================================================
+       VIEW 3
+  ========================================================= -->
+
+  <h3>
+    3 &nbsp;What is the delay attributed to?
+  </h3>
+
+
   <figure>
-    <div class="chart" id="viz-causes"><div class="loading">Loading cause breakdown…</div></div>
+
+    <div class="chart" id="viz-causes">
+      <div class="loading">
+        Loading cause breakdown…
+      </div>
+    </div>
+
+
     <div class="legend" id="legend-causes"></div>
-    <figcaption><b>Normalized stacked bars.</b> Share of delay minutes by reported cause, one
-      row per carrier, sorted by the late-inbound-aircraft share. Turns the argument: the
-      category that dominates is the one that describes delay being handed forward from a
-      previous flight, and its size varies more across carriers than weather does.</figcaption>
+
+
+    <figcaption>
+
+      <b>
+        Normalized stacked bar chart.
+      </b>
+
+      Each carrier is represented by one 100% bar showing how its
+      reported delay minutes are distributed across late aircraft,
+      carrier operations, the national airspace system, weather,
+      and security.
+
+      This view turns the argument: the largest category is the one that
+      describes delay being handed forward from a previous flight, and
+      its size varies far more across carriers than weather does.
+
+      <b>
+        Interaction:
+      </b>
+
+      click any cause above the chart to re-sort carriers by that
+      category. Hovering one cause highlights the same category across
+      all carriers to make cross-carrier comparison easier.
+
+    </figcaption>
+
   </figure>
+
+
+
+  <!-- ========================================================
+       VIEW 4
+  ========================================================= -->
+
+  <h3>
+    4 &nbsp;Does delay persist across an aircraft's day?
+  </h3>
+
+
+  <figure>
+
+    <div class="chart" id="viz-distance">
+      <div class="loading">
+        Loading propagation analysis…
+      </div>
+    </div>
+
+
+    <figcaption>
+
+      <b>
+        Flow diagram of delay states, with median curves as a second view.
+      </b>
+
+      Every rotation is followed across its legs and placed, at each one, in
+      one of four arrival-delay states. The ribbons show how aircraft move
+      between those states from one leg to the next, coloured by where they
+      came from, so a band that stays thick along the top is a group of
+      aircraft that never gets its morning back.
+
+      The median curves answer the same question with one number per group,
+      which is easier to read but hides something the ribbons show: whether a
+      falling median means every aircraft recovered a little, or some
+      recovered fully while others stayed late.
+
+      The decline of any one curve is also not by itself the finding. Groups
+      are defined by how the first leg ended, so a group selected on being
+      extremely late at leg one would fall back at later legs even if nothing
+      were ever recovered — regression to the mean, not recovery. What
+      regression cannot produce is the distance between the curves, since
+      every group regresses; the gap measure subtracts the on-time group at
+      each leg to show that part on its own.
+
+      The flow view opens on the aircraft that began the day 60 or more
+      minutes late rather than on the whole fleet. Across all rotations about
+      three quarters of aircraft are on time at any given leg, so that single
+      band takes most of the height and the delayed states — the entire
+      subject of the chart — are reduced to slivers. Following one starting
+      cohort puts the group being asked about at full height; the last control
+      switches between cohorts, and back to the whole fleet.
+
+      It is also restricted to rotations of at least five legs so the same
+      aircraft appear in every column and the ribbons conserve mass.
+      Route length enters here rather than as a question of its own:
+      short-haul rotations fly more legs with less scheduled ground time
+      between them, so the haul control tests whether the shape of the
+      rotation changes how far a delay travels.
+
+      <b>
+        Interaction:
+      </b>
+
+      switch between the flow and median views, choose which starting cohort
+      to follow, filter to short-haul or long-haul rotations, click any band
+      in the flow view to follow that group forward through the rest of the
+      day, and in the median view
+      switch the measure, isolate one group to reveal its interquartile band,
+      or hover to read all four groups at the same leg.
+
+    </figcaption>
+
+  </figure>
+
+
+
+  <!-- ========================================================
+       VIEW 5
+  ========================================================= -->
+
+  <h3>
+    5 &nbsp;How much of a late arrival gets handed back?
+  </h3>
+
+
+  <figure>
+
+    <div class="chart" id="viz-aircraft">
+      <div class="loading">
+        Loading turnaround analysis…
+      </div>
+    </div>
+
+
+    <figcaption>
+
+      <b>
+        Dumbbell chart of arrival and departure delay.
+      </b>
+
+      A turnaround is one aircraft landing somewhere and departing again on
+      its next leg. Each row shows two numbers: the median delay the aircraft
+      landed with, drawn as a hollow dot, and the median delay it left with,
+      drawn as a solid one. The gap between them is what the ground gave back,
+      and it is that gap — not the median of the individual differences, which
+      is a slightly different number on a skewed distribution — that the
+      printed figure reports, so the number always matches the distance the
+      eye can measure. Both appear in the tooltip.
+      A bar on the right reports the share of those aircraft that were still
+      fifteen or more minutes late when they departed, which is the number a
+      passenger on the next flight would feel.
+
+      Every measure counts only turnarounds where the aircraft actually
+      arrived fifteen or more minutes late. Unconditioned, schedule padding
+      makes almost every airport appear to add delay: the typical flight lands
+      early and pushes back close to on time, so the gap is mostly inbound
+      slack rather than anything happening on the ground.
+
+      The rows are scheduled ground-time bands by default, because that is the
+      one quantity the timetable actually sets and millions of turnarounds sit
+      behind each band. The airport view asks the same question of individual
+      airports and is restricted to the two ends of the ranking, where the
+      differences are large enough to mean something.
+
+      Because both timestamps are recorded at the same airport, this view
+      involves no time-zone conversion at all.
+
+      <b>
+        Interaction:
+      </b>
+
+      switch the rows between ground-time bands and airports, re-rank the
+      airport view by most recovered, least recovered, or busiest, filter to a
+      single carrier, hover any row for the full record, and click an airport
+      to send that selection to the map and the heatmap.
+
+    </figcaption>
+
+  </figure>
+
 </section>
 
-<!-- ==================== 3. INTERACTION / ANIMATION ==================== -->
+
+
+<!-- ============================================================
+     IMPLEMENTED INTERACTIONS
+============================================================ -->
+
 <section id="interaction">
-  <h2>Interaction and animation plan <span class="rubric">requirement 3</span></h2>
-  <p>One selection model ties the views together: choosing an airport on the map filters
-     every other view to that airport. The five explanatory dimensions become controls on a
-     single argument rather than five separate stories.</p>
+
+  <h2>
+    Implemented Interactions
+    <span class="rubric">
+      coordinated exploration
+    </span>
+  </h2>
+
+
+  <p>
+    Interaction is used for filtering, changing variables, highlighting,
+    brushing, coordinated selection, and details on demand.
+
+    The project does not rely on tooltips alone.
+  </p>
+
 
   <div class="plan">
-    <h4>Visualization 1 — map</h4>
-    <p>Click to select an airport and broadcast it to the other views; shift-click to compare
-      two. A month slider re-bins the circles, with radius and fill transitioning over about
-      400&nbsp;ms so a viewer can see which airports move seasonally instead of re-reading a
-      new map. A toggle switches the encoded measure between median delay, 15-minute delay
-      rate, and cancellation rate, because an airport that looks calm on one can look severe
-      on another. Route arcs for the selected airport fade in on selection, so the flow layer
-      never competes with the symbol layer by default.</p>
+
+    <h4>
+      1. Geographic metric switching
+    </h4>
+
+    <p>
+      Users can switch the state map between 15-minute delay rate and
+      cancellation rate.
+
+      The state colors and the legend, including its numeric precision,
+      transition to the newly selected measure while airport volumes
+      remain fixed — so the reader can see which states look calm on one
+      measure and severe on the other.
+    </p>
+
   </div>
 
-  <div class="plan">
-    <h4>Visualization 2 — heatmap</h4>
-    <p>Filters to the selected airport, with cells interpolating from the national pattern to
-      the local one so the difference is legible as movement. Brushing a range of cells filters
-      Visualization 3 to just those departure hours, which is how we intend to test whether the
-      late-inbound share grows through the day. A month stepper animates January to December on
-      a play control, held to roughly one second per frame.</p>
-  </div>
 
   <div class="plan">
-    <h4>Visualization 3 — cause composition</h4>
-    <p>Clicking a cause segment re-sorts the carriers by that cause's share, with rows
-      transitioning to their new positions rather than jumping, so the reordering is readable.
-      Toggling between carrier view and airport view keeps the same encoding while changing the
-      unit of analysis. Hovering a segment dims the other four, since at 100% width the
-      comparison a viewer wants is across rows within one cause.</p>
+
+    <h4>
+      2. Coordinated airport selection
+    </h4>
+
+    <p>
+      Selecting an airport is a single shared state rather than a
+      per-chart control. Clicking an airport on the map filters the
+      heatmap and highlights the same airport in the turnaround plot;
+      clicking a point in the turnaround plot does the same in reverse.
+
+      Clicking the selected airport again clears it everywhere.
+    </p>
+
   </div>
 
+
   <div class="plan">
-    <h4>Planned additions (Visualizations 4 and 5)</h4>
-    <p>A distance-versus-delay view with a brushable distance range, and the single-aircraft
-      chain view, where legs animate in sequence along a time axis so accumulation is shown as
-      it happens rather than asserted. The aircraft shown will be selected by a stated rule —
-      the tail numbers with the most legs on a given high-delay day — rather than picked by
-      hand, so the example cannot be a cherry-picked one.</p>
+
+    <h4>
+      3. Heatmap reset and details
+    </h4>
+
+    <p>
+      The heatmap displays the active geographic selection and includes
+      a reset control.
+
+      Hovering individual cells reveals exact median delay, delay rate,
+      flight count, weekday, and scheduled departure hour.
+    </p>
+
   </div>
+
+
+  <div class="plan">
+
+    <h4>
+      4. Cause-based carrier sorting and highlighting
+    </h4>
+
+    <p>
+      Clicking one of the five reported delay causes reorders the
+      carrier rows by that category's share, with animated transitions
+      preserving visual continuity during the change in ranking.
+
+      Hovering one category emphasizes it across every carrier and fades
+      the others, which is the comparison a reader wants when all bars
+      are the same width.
+    </p>
+
+  </div>
+
+
+  <div class="plan">
+
+    <h4>
+      5. Rotation filtering and measure switching
+    </h4>
+
+    <p>
+      The propagation chart can be switched between a flow view and
+      median curves, filtered to short-haul or long-haul rotations, and
+      — in the median view — switched between median delay, the gap
+      against the on-time group, the 90th percentile, and the share of
+      flights delayed 15 minutes or more.
+
+      The flow view is read one cohort at a time: a control selects which
+      starting group to follow, and clicking any band inside the diagram
+      narrows it further, fading everything that did not come from that
+      band. Both exist because the unconditioned diagram is dominated by
+      the on-time majority and says very little about the question.
+
+      Changing the measure tests whether a pattern is a property of the
+      typical flight or only of the extreme tail — and, in the case of
+      the gap measure, separates delay that is still being carried from
+      the regression to the mean that any group defined by an extreme
+      first leg would show anyway.
+    </p>
+
+  </div>
+
+
+  <div class="plan">
+
+    <h4>
+      6. Series isolation with uncertainty on demand
+    </h4>
+
+    <p>
+      Clicking a legend entry in the propagation chart isolates that
+      group and reveals its interquartile band.
+
+      The bands are hidden by default because four overlapping ranges
+      obscure the comparison the chart exists to support; showing one at
+      a time keeps the spread available without that cost.
+    </p>
+
+  </div>
+
+
+  <div class="plan">
+
+    <h4>
+      7. Brushing with a selection summary
+    </h4>
+
+    <p>
+      Dragging a box across the turnaround plot dims the airports
+      outside it and reports what the selected group has in common:
+      how many of them add delay, their median scheduled ground time,
+      their median delay kept, and the number of turnarounds behind
+      those figures.
+
+      Brushing therefore answers a question rather than only dimming
+      marks.
+    </p>
+
+  </div>
+
+
+  <div class="plan">
+
+    <h4>
+      8. Axis and carrier switching in the turnaround view
+    </h4>
+
+    <p>
+      The turnaround chart switches its rows between scheduled ground-time
+      bands and individual airports, keeping the same marks so the two
+      read alike, and the airport view can be re-ranked by most recovered,
+      least recovered, or busiest.
+
+      Changing the unit is the point rather than a convenience. At the
+      airport level the medians differ by only a few minutes and the
+      signal is buried in the variation between an airport's own
+      turnarounds; grouping the turnarounds themselves by the slack the
+      schedule allowed puts millions of observations behind every row.
+
+      The airport view can also be filtered to a single carrier, which
+      asks whether an airport behaves the same way for everyone operating
+      there.
+    </p>
+
+  </div>
+
+
+  <div class="plan">
+
+    <h4>
+      9. Details on demand
+    </h4>
+
+    <p>
+      Hover tooltips throughout the project provide exact values without
+      permanently adding labels that would clutter the visualizations.
+
+      In the propagation chart the tooltip follows a vertical guide and
+      reports all four groups at once, because the comparison of
+      interest is across groups at the same leg.
+    </p>
+
+  </div>
+
 </section>
 
-<!-- ======================= 4. EVALUATION PLAN ======================= -->
+
+
+<!-- ============================================================
+     DESIGN RATIONALE
+============================================================ -->
+
+<section id="design">
+
+  <h2>
+    Design Rationale
+  </h2>
+
+
+  <p>
+    Each visualization uses an idiom matched to a different analytical
+    task.
+
+    Geographic position supports regional and airport comparison; a
+    matrix supports repeated temporal comparison; normalized stacked
+    bars support part-to-whole comparison; a flow diagram shows movement
+    between states over a sequence, which is the shape of the
+    propagation question itself; and a scatter plot with a fitted line
+    supports relationship discovery.
+  </p>
+
+
+  <p>
+    Two encoding decisions are load-bearing.
+
+    In the map, the state measure and the airport volume are given
+    separate channels, because one circle carrying both made the dense
+    corridors unreadable.
+
+    In the turnaround chart, arrival and departure delay share one
+    horizontal scale so the distance between the two dots is directly the
+    minutes given back, with no second axis to reconcile.
+  </p>
+
+
+  <p>
+    Color is deliberately restrained.
+
+    The map and heatmap use a single-hue sequential ramp whose domain is
+    taken from the data rather than anchored at zero: median arrival
+    delay is negative at almost every airport, so a ramp anchored at
+    zero would leave half of its range unused and show the reader colors
+    that never appear on the chart.
+
+    Delay causes use a small categorical palette in which related colors
+    separate the airline's own operation from external conditions.
+
+    The propagation chart orders its four colors by severity, with the
+    on-time group deliberately quiet, because it is the baseline the
+    other three are read against.
+  </p>
+
+
+  <p>
+    Because flight-delay distributions are highly skewed, several views
+    emphasize medians, quartiles, and upper percentiles.
+
+    This reduces the risk that a small number of extreme events dominate
+    the interpretation of the typical flight.
+  </p>
+
+</section>
+
+
+
+<!-- ============================================================
+     EVALUATION
+============================================================ -->
+
 <section id="evaluation">
-  <h2>Evaluation plan <span class="rubric">requirement 4</span></h2>
 
-  <h3>What we will evaluate</h3>
+  <h2>
+    Evaluation
+  </h2>
+
+
+  <p>
+    The project can be evaluated through task-based testing with users
+    who have general familiarity with charts but no specialized aviation
+    knowledge.
+
+    Evaluation should focus on whether viewers can understand the
+    visual encodings, discover the interactions, and correctly describe
+    the relationship among the five views.
+  </p>
+
+
+  <p>
+    Representative tasks include:
+  </p>
+
+
   <ul>
-    <li><b>Comprehension.</b> Can a first-time viewer read the correct value and the correct
-      trend from each view without our narration?</li>
-    <li><b>Argument transfer.</b> After using the site, can a viewer state where delay mostly
-      comes from? This is the one that matters: the views can each be readable and the
-      conclusion still fail to land.</li>
-    <li><b>Interaction discoverability.</b> Do viewers find the airport selection and the
-      cross-filtering without being told it exists?</li>
-    <li><b>Performance.</b> Time to first render and frame rate during transitions, on a
-      laptop and on a phone.</li>
+
+    <li>
+      identify a state or airport with relatively high delay
+    </li>
+
+    <li>
+      compare morning and evening delay patterns
+    </li>
+
+    <li>
+      identify which carriers have relatively high shares of a selected
+      delay cause
+    </li>
+
+    <li>
+      state whether an aircraft that starts its day an hour late is
+      still late by its fourth leg
+    </li>
+
+    <li>
+      say roughly how much of a 40-minute late arrival is given back when
+      the schedule allows 40 minutes on the ground, and when it allows two
+      hours
+    </li>
+
   </ul>
 
-  <h3>How</h3>
-  <p>Task-based testing with 6–8 participants drawn from classmates and other students with no
-     aviation background, run individually for about 15 minutes, thinking aloud. Each session
-     uses a fixed task list, for example: <i>find the airport with the highest median delay in
-     July</i>; <i>say whether a 7&nbsp;a.m. or a 7&nbsp;p.m. departure is the safer booking, and
-     why</i>; <i>name the carrier most exposed to inherited delay</i>. We record completion,
-     time, and the wording of wrong answers, because how someone is wrong tells us which
-     encoding misled them.</p>
-  <p>We will also run a short heuristic pass ourselves against the course's design principles —
-     expressiveness and effectiveness of each encoding, colour discriminability, and whether any
-     view invites a comparison the data does not support.</p>
 
-  <h3>What we will collect</h3>
-  <ul>
-    <li>Task completion and error rate per task, and time on task</li>
-    <li>A one-sentence written answer to "where does flight delay mostly come from?" collected
-      before and after use, so we can see whether the site moved the belief</li>
-    <li>Think-aloud notes, tagged by which view triggered the confusion</li>
-    <li>Self-rated confidence, 1–5, per task</li>
-    <li>Browser performance timings from the Performance panel</li>
-  </ul>
-  <p>Findings get logged in <span class="mono">docs/evaluation.md</span> with the design change
-     each one produced, so the final write-up can show what testing actually changed rather
-     than reporting that testing happened.</p>
+  <p>
+    Beyond task accuracy, the measure that matters most is whether the
+    project moves a belief: participants are asked in one sentence where
+    flight delay mostly comes from, both before and after using the
+    site.
+
+    Other useful measures include completion time, interaction errors,
+    self-reported confidence, and qualitative comments about confusing
+    encodings or controls.
+  </p>
+
 </section>
+
+
+
+<!-- ============================================================
+     CONCLUSION
+============================================================ -->
+
+<section id="conclusion">
+
+  <h2>
+    From Symptoms to Source
+  </h2>
+
+
+  <p>
+    The five views form a progressively narrower investigation of U.S.
+    flight delays.
+
+    The map begins with the geographic distribution of delay.
+
+    The heatmap shows that performance degrades across the operating
+    day rather than varying at random.
+
+    The cause chart shifts attention from visible outcomes to the
+    categories carriers use to explain them, where the largest category
+    points back at an earlier flight.
+
+    The propagation chart tests that claim directly, following every
+    usable aircraft-day across its successive legs.
+
+    Finally, the turnaround chart asks what decides whether a late
+    arrival is handed onward, and finds the answer in the one quantity a
+    timetable actually sets: how long the aircraft is given on the
+    ground.
+  </p>
+
+
+  <p>
+    Measuring that last question correctly required conditioning on the
+    aircraft actually arriving late. Across all turnarounds, nearly
+    every airport appears to depart later than it arrived — but only
+    because schedules are padded on the inbound side, so the median
+    aircraft lands early and pushes back close to on time. The apparent
+    effect is a property of the timetable rather than of the airport.
+  </p>
+
+
+  <p>
+    Together, these views show why a delayed flight should not always
+    be interpreted as an isolated event.
+
+    In a tightly connected airline network, the outcome observed on one
+    flight may reflect conditions and disruptions carried forward from
+    earlier operations.
+
+    The interactive structure lets users move between system-level
+    patterns and specific airports rather than relying on a single
+    summary statistic.
+  </p>
+
+
+  <p>
+    Two limitations deserve statement rather than a footnote.
+
+    The first is that grouping rotations by their first leg guarantees
+    some regression to the mean, so the decline along each line in
+    Visualization 4 overstates how much the system recovers. The gap
+    measure is included for exactly that reason: it reports the distance
+    between groups, which regression cannot manufacture.
+
+    The second is the reconstruction of aircraft rotations.
+    BTS publishes local clock times while airline operations run on UTC,
+    so rotations are ordered by local scheduled departure and then
+    checked for continuity, and any aircraft-day whose legs do not form
+    an unbroken chain is discarded rather than drawn in the wrong order.
+    The discarded share is reported by the pipeline, and it may fall
+    unevenly on fleets that cross several time zones.
+  </p>
+
+</section>
+
+
+
+<!-- ============================================================
+     REPRODUCIBILITY
+============================================================ -->
+
+<section id="reproducibility">
+
+  <h2>
+    Reproducibility
+  </h2>
+
+
+  <p>
+    The project source code, processing scripts, visualization code,
+    processed data, and documentation are available in the project
+    repository.
+  </p>
+
+
+  <p>
+    The large raw BTS monthly files are not stored directly in GitHub.
+
+    After downloading the raw files into
+
+    <span class="mono">
+      data/raw/
+    </span>,
+
+    the processed visualization files can be regenerated with:
+  </p>
+
+
+  <p class="mono">
+    python scripts/build_data.py
+    <br>
+    python scripts/build_propagation.py
+  </p>
+
+
+  <p>
+    The second script builds the aircraft-rotation aggregates used by
+    Visualizations 4 and 5, and reuses the cleaned views defined in the
+    first so that both share one definition of an operated flight.
+  </p>
+
+
+  <p>
+    The website uses HTML, CSS, JavaScript, D3.js v7, TopoJSON,
+    Python, and DuckDB.
+  </p>
+
+
+  <p>
+    Repository:
+    <a href="https://github.com/Susan-fox/stats401-final-project">
+      github.com/Susan-fox/stats401-final-project
+    </a>
+  </p>
+
+</section>
+
+
+
+<!-- ============================================================
+     FOOTER
+============================================================ -->
+
+<footer>
+
+  <p>
+    STATS 401 · Data Acquisition and Visualization
+    <br>
+    Tian Liang &amp; Jiayang Sun
+  </p>
+
+</footer>
+
 
 </div>
 
-<script type="module" src="js/main.js"></script>
+
+
+<!-- ============================================================
+     JAVASCRIPT
+============================================================ -->
+
+<script
+  type="module"
+  src="js/main.js">
+</script>
+
+
 </body>
 </html>

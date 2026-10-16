@@ -12,7 +12,9 @@ Outputs (all in data/processed/):
     airports.json        per-airport metrics + coordinates   -> Viz 1 (map)
     hour_dow.json        hour x weekday delay matrix         -> Viz 2 (heatmap)
     causes.json          five-cause composition by carrier   -> Viz 3 (stacked bar)
-    distance_delay.json  distance-bin delay quantiles        -> Viz 4 (relationship)
+
+Visualizations 4 and 5 (aircraft rotations) are built by build_propagation.py,
+which imports connect() from here so both scripts share one `ops` view.
 
 Every output is a few hundred KB at most. The raw CSVs are never shipped.
 """
@@ -83,6 +85,8 @@ def connect(raw_glob):
             Tail_Number                  AS tail,
             Origin, Dest,
             CAST(TRY_CAST(CRSDepTime AS INTEGER) / 100 AS INTEGER) % 24 AS dep_hour,
+            TRY_CAST(CRSDepTime AS INTEGER) AS crs_dep_hhmm,
+            TRY_CAST(CRSArrTime AS INTEGER) AS crs_arr_hhmm,
             TRY_CAST(DepDelay  AS DOUBLE) AS dep_delay,
             TRY_CAST(ArrDelay  AS DOUBLE) AS arr_delay,
             TRY_CAST(Distance  AS DOUBLE) AS distance,
@@ -253,44 +257,6 @@ def build_causes(con, min_delayed=2000):
     return df
 
 
-def build_distance_delay(con):
-    df = con.execute("""
-        WITH b AS (
-            SELECT CASE
-                     WHEN distance <  250 THEN '0-250'
-                     WHEN distance <  500 THEN '250-500'
-                     WHEN distance <  750 THEN '500-750'
-                     WHEN distance < 1000 THEN '750-1000'
-                     WHEN distance < 1500 THEN '1000-1500'
-                     WHEN distance < 2000 THEN '1500-2000'
-                     WHEN distance < 2500 THEN '2000-2500'
-                     ELSE '2500+'
-                   END AS bin,
-                   CASE
-                     WHEN distance <  250 THEN 1 WHEN distance <  500 THEN 2
-                     WHEN distance <  750 THEN 3 WHEN distance < 1000 THEN 4
-                     WHEN distance < 1500 THEN 5 WHEN distance < 2000 THEN 6
-                     WHEN distance < 2500 THEN 7 ELSE 8
-                   END AS ord,
-                   arr_delay, c_late_aircraft, c_carrier, c_weather, c_nas, c_security
-            FROM ops WHERE distance IS NOT NULL
-        )
-        SELECT bin, ord, COUNT(*) AS n,
-               ROUND(QUANTILE_CONT(arr_delay, 0.25), 2) AS q25,
-               ROUND(MEDIAN(arr_delay), 2)              AS median,
-               ROUND(QUANTILE_CONT(arr_delay, 0.75), 2) AS q75,
-               ROUND(QUANTILE_CONT(arr_delay, 0.90), 2) AS p90,
-               ROUND(AVG(CASE WHEN arr_delay >= 15 THEN 1.0 ELSE 0 END), 4) AS delay15_rate,
-               ROUND(SUM(COALESCE(c_late_aircraft,0)) / NULLIF(SUM(
-                    COALESCE(c_carrier,0)+COALESCE(c_weather,0)+COALESCE(c_nas,0)
-                   +COALESCE(c_security,0)+COALESCE(c_late_aircraft,0)), 0), 4)
-                                                        AS late_aircraft_share
-        FROM b GROUP BY bin, ord ORDER BY ord
-    """).df()
-    write("distance_delay.json", json.loads(df.to_json(orient="records")))
-    return df
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--raw", default=os.path.join(ROOT, "data", "raw"),
@@ -307,8 +273,7 @@ def main():
     build_airports(con)
     build_hour_dow(con)
     build_causes(con)
-    build_distance_delay(con)
-    print("\ndone.  data/processed/ is what you commit; data/raw/ is not.")
+    print("\ndone.  Now run build_propagation.py for Visualizations 4 and 5.")
 
 
 if __name__ == "__main__":

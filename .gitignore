@@ -7,3 +7,6 @@ data/raw/
 .DS_Store
 __pycache__/
 .ipynb_checkpoints/
+
+# local Python environment
+.venv/

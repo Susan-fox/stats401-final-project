@@ -2,6 +2,8 @@ import { drawMap } from "./map.js";
 import { drawHeatmap } from "./heatmap.js";
 import { drawCauses, drawRibbon } from "./causes.js";
 import { fmtInt, fmtPct, fmtMin, CAUSE_KEYS } from "./shared.js";
+import { drawPropagation } from "./propagation.js";
+import { drawTurnarounds } from "./turnarounds.js";
 
 function put(id, text) {
   const el = document.getElementById(id);
@@ -35,6 +37,8 @@ async function main() {
   drawMap();
   drawHeatmap();
   drawCauses();
+  drawPropagation();
+  drawTurnarounds();
 }
 
 main();
