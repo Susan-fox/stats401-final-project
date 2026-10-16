@@ -1,7 +1,9 @@
 # US Flight Delays: From Symptoms to Source
 
-**STATS 401 Final Report** · Tian Liang & Jiayang Sun
-Live site: https://susan-fox.github.io/stats401-final-project/ ·
+**STATS 401 Final Report · Group 13**  
+**Tian Liang & Jiayang Sun**
+
+Live site: https://susan-fox.github.io/stats401-final-project/  
 Repository: https://github.com/Susan-fox/stats401-final-project
 
 ---
@@ -73,7 +75,7 @@ entire processed payload is under one megabyte.
 
 ### 1 · Where delays concentrate
 
-*(figures/viz1-map.png)*
+![Visualization 1: Geographic distribution of U.S. flight delays](figures/viz1-map.png)
 
 A choropleth of states by the share of flights delayed 15+ minutes, flight-weighted
 across each state's airports, with every reporting airport overlaid as a circle sized by
@@ -85,7 +87,7 @@ variable.
 
 ### 2 · When delay accumulates
 
-*(figures/viz2-heatmap.png)*
+![Visualization 2: Median arrival delay by scheduled departure hour and weekday](figures/viz2-heatmap.png)
 
 An hour × weekday matrix of median arrival delay. Every row runs pale on the left to dark
 on the right: flights scheduled later in the day are progressively later. This is the
@@ -95,7 +97,7 @@ national pattern to that airport's.
 
 ### 3 · What the delay is attributed to
 
-*(figures/viz3-causes.png)*
+![Visualization 3: Delay cause composition across carriers](figures/viz3-causes.png)
 
 Normalized stacked bars, one per carrier, over the five reported causes. Clicking a cause
 re-sorts carriers by its share; hovering emphasises that category across every row. The
@@ -104,7 +106,7 @@ flight, and its size varies far more across carriers than weather does.
 
 ### 4 · Whether delay persists
 
-*(figures/viz4-flows.png)*
+![Visualization 4: Delay-state flows across successive aircraft legs](figures/viz4-flows.png)
 
 A flow diagram following rotations of five or more legs between four delay states, with
 median curves available as a second view. Users choose which starting cohort to follow,
@@ -115,7 +117,7 @@ late. A median curve cannot show that second result at all.
 
 ### 5 · How much gets handed back
 
-*(figures/viz5-dumbbell.png)*
+![Visualization 5: Turnaround recovery by scheduled ground time](figures/viz5-dumbbell.png)
 
 Dumbbells of median arrival delay against median departure delay for the same
 turnarounds, counting only arrivals 15+ minutes late. Rows are scheduled ground-time
