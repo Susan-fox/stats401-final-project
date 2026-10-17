@@ -30,9 +30,9 @@ given back. Five questions structure the sequence:
 5. How much of a late arrival gets handed back before the aircraft departs again?
 
 The intended audience is frequent travelers and general readers with no aviation
-background. Visualization suits the argument because "delay propagates" is a claim about
-how one event relates to the next, over distributions heavy enough in the tail that a
-table of averages would hide both. The project also depends on comparing several
+background. Visualization suits the argument because "delay propagates" is a claim
+about how one event relates to the next, over distributions skewed enough that a table
+of averages would hide both the relation and the tail. The project also depends on comparing several
 conditionings at once — by airport, hour, carrier, starting state and scheduled slack —
 which coordinated interactive views support and static summaries do not.
 
@@ -61,8 +61,9 @@ been reassigned historically, so `DOT_ID_Reporting_Airline` is the stable key.
 **Transformation.** Visualizations 4 and 5 required reconstructing aircraft rotations:
 grouping by tail number and date, ordering by scheduled local departure, and checking
 that each leg's destination is the next leg's origin. Operations run on UTC while BTS
-publishes local time, so that continuity test guards against mis-ordered sequences; 2.6%
-of aircraft-days fail and are discarded, leaving 1,328,671. An independent check recovers
+publishes local time, so that continuity test guards against mis-ordered sequences. Of
+1,722,326 aircraft-days, 2.6% (44,630) fail it and are discarded; requiring at least
+three legs as well leaves 1,328,671 usable. An independent check recovers
 each leg's implied UTC offset from `CRSArrTime − CRSDepTime − CRSElapsedTime` and finds it
 within five minutes of a whole hour for 100.0% of legs.
 
